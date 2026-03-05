@@ -120,19 +120,20 @@ function launchChromeForWindows() {
   ].filter(Boolean)
 
   const chromePath = candidates.find((candidate) => fs.existsSync(candidate))
+  const executable = chromePath || 'chrome'
+  const quotedExecutable = `"${executable.replace(/"/g, '\\"')}"`
+  const quotedUserDataDir = `"${userDataDir.replace(/"/g, '\\"')}"`
+  const quotedUrl = `"${appUrl.replace(/"/g, '\\"')}"`
+  const command = `start "" ${quotedExecutable} --disable-web-security --user-data-dir=${quotedUserDataDir} ${quotedUrl}`
 
-  const args = [
-    '--disable-web-security',
-    `--user-data-dir=${userDataDir}`,
-    appUrl,
-  ]
+  const result = spawnSync('cmd.exe', ['/d', '/s', '/c', command], {
+    stdio: 'ignore',
+    windowsHide: true,
+  })
 
-  if (chromePath) {
-    spawnDetached(chromePath, args)
-    return
+  if (result.status !== 0) {
+    throw new Error('Impossibile avviare Chrome su Windows (cmd/start).')
   }
-
-  spawnDetached('cmd.exe', ['/c', 'start', '', 'chrome', ...args])
 }
 
 function launchChromeForLinux() {
@@ -160,25 +161,46 @@ function launchChromeForMac() {
     `--user-data-dir=${userDataDir}`,
     appUrl,
   ]
-  const appBundlePath = '/Applications/Google Chrome.app'
+  const openAttempts = [
+    ['-n', '-b', 'com.google.Chrome', '--args', ...chromeArgs],
+    ['-n', '-a', 'Google Chrome', '--args', ...chromeArgs],
+  ]
 
-  const openByName = spawnSync('open', ['-n', '-a', 'Google Chrome', '--args', ...chromeArgs], {
-    stdio: 'ignore',
-  })
-  if (openByName.status === 0) {
-    return
+  const appBundleCandidates = [
+    '/Applications/Google Chrome.app',
+    path.join(os.homedir(), 'Applications', 'Google Chrome.app'),
+  ]
+
+  for (const appBundlePath of appBundleCandidates) {
+    if (fs.existsSync(appBundlePath)) {
+      openAttempts.push(['-n', appBundlePath, '--args', ...chromeArgs])
+    }
   }
 
-  if (fs.existsSync(appBundlePath)) {
-    const openByBundle = spawnSync('open', ['-n', appBundlePath, '--args', ...chromeArgs], {
-      stdio: 'ignore',
-    })
-    if (openByBundle.status === 0) {
+  for (const openArgs of openAttempts) {
+    const result = spawnSync('open', openArgs, { stdio: 'ignore' })
+    if (result.status === 0) {
       return
     }
   }
 
-  throw new Error('Google Chrome non trovato su macOS.')
+  const binaryCandidates = [
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    path.join(os.homedir(), 'Applications', 'Google Chrome.app', 'Contents', 'MacOS', 'Google Chrome'),
+  ]
+
+  for (const binaryPath of binaryCandidates) {
+    if (!fs.existsSync(binaryPath)) {
+      continue
+    }
+
+    spawnDetached(binaryPath, chromeArgs)
+    return
+  }
+
+  throw new Error(
+    'Google Chrome non trovato su macOS (provati bundle-id, nome app e path standard /Applications, ~/Applications).',
+  )
 }
 
 async function main() {
