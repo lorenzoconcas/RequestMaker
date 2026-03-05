@@ -20,7 +20,10 @@ if (currentPlatform !== expectedPlatform) {
 
 const devPort = Number.parseInt(process.env.REQUESTMAKER_DEV_PORT || '5173', 10)
 const appUrl = process.env.REQUESTMAKER_DEV_URL || `http://localhost:${devPort}`
-const userDataDir = path.join(os.tmpdir(), 'requestmaker-chrome')
+const profileId = `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`
+const userDataDir = path.join(os.tmpdir(), 'requestmaker-chrome', profileId)
+
+fs.mkdirSync(userDataDir, { recursive: true })
 
 const devServerProcess = spawn('npm run dev:web', {
   env: process.env,
@@ -118,6 +121,19 @@ function spawnDetached(command, args) {
   child.unref()
 }
 
+function buildChromeArgs() {
+  return [
+    '--disable-web-security',
+    '--disable-sync',
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--disable-search-engine-choice-screen',
+    '--new-window',
+    `--user-data-dir=${userDataDir}`,
+    appUrl,
+  ]
+}
+
 function launchChromeForWindows() {
   const candidates = [
     path.join(process.env.ProgramFiles || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
@@ -126,10 +142,12 @@ function launchChromeForWindows() {
 
   const chromePath = candidates.find((candidate) => fs.existsSync(candidate))
   const executable = chromePath || 'chrome.exe'
+  const launchArgs = buildChromeArgs()
   const escapePs = (value) => value.replace(/'/g, "''")
+  const powershellArgsList = launchArgs.map((argument) => `'${escapePs(argument)}'`).join(',')
   const script =
     `Start-Process -FilePath '${escapePs(executable)}' ` +
-    `-ArgumentList '--disable-web-security','--user-data-dir=${escapePs(userDataDir)}','${escapePs(appUrl)}'`
+    `-ArgumentList ${powershellArgsList}`
 
   const powershellResult = spawnSync(
     'powershell.exe',
@@ -144,9 +162,8 @@ function launchChromeForWindows() {
     return
   }
 
-  const cmdCommand =
-    `start "" "${executable}" --disable-web-security ` +
-    `--user-data-dir="${userDataDir}" "${appUrl}"`
+  const quotedCmdArgs = launchArgs.map((argument) => `"${argument.replace(/"/g, '\\"')}"`).join(' ')
+  const cmdCommand = `start "" "${executable}" ${quotedCmdArgs}`
 
   const cmdResult = spawnSync('cmd.exe', ['/d', '/s', '/c', cmdCommand], {
     stdio: 'ignore',
@@ -160,11 +177,7 @@ function launchChromeForWindows() {
 
 function launchChromeForLinux() {
   const executables = ['google-chrome', 'google-chrome-stable', 'chromium-browser', 'chromium']
-  const args = [
-    '--disable-web-security',
-    `--user-data-dir=${userDataDir}`,
-    appUrl,
-  ]
+  const args = buildChromeArgs()
 
   for (const executable of executables) {
     const probe = spawnSync(executable, ['--version'], { stdio: 'ignore' })
@@ -178,11 +191,7 @@ function launchChromeForLinux() {
 }
 
 function launchChromeForMac() {
-  const chromeArgs = [
-    '--disable-web-security',
-    `--user-data-dir=${userDataDir}`,
-    appUrl,
-  ]
+  const chromeArgs = buildChromeArgs()
   const openAttempts = [
     ['-n', '-b', 'com.google.Chrome', '--args', ...chromeArgs],
     ['-n', '-a', 'Google Chrome', '--args', ...chromeArgs],

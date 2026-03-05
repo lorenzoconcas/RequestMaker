@@ -32,24 +32,25 @@ const commandItems = computed<CommandItem[]>(() => [
     key: 'windows-powershell',
     label: 'Windows (PowerShell)',
     command:
-      `$chrome="$env:ProgramFiles\\Google\\Chrome\\Application\\chrome.exe"; if (-not (Test-Path $chrome)) { $chrome="$env:ProgramFiles(x86)\\Google\\Chrome\\Application\\chrome.exe" }; $profileDir="$env:TEMP\\requestmaker-chrome"; Start-Process -FilePath $chrome -ArgumentList '--disable-web-security', "--user-data-dir=$profileDir", "${escapedAppUrl.value}"`,
+      `$chrome="$env:ProgramFiles\\Google\\Chrome\\Application\\chrome.exe"; if (-not (Test-Path $chrome)) { $chrome="$env:ProgramFiles(x86)\\Google\\Chrome\\Application\\chrome.exe" }; $profileDir=Join-Path $env:TEMP ("requestmaker-chrome-"+[guid]::NewGuid().ToString()); Start-Process -FilePath $chrome -ArgumentList '--disable-web-security','--disable-sync','--no-first-run','--no-default-browser-check','--disable-search-engine-choice-screen','--new-window', "--user-data-dir=$profileDir", "${escapedAppUrl.value}"`,
   },
   {
     key: 'windows-cmd',
     label: 'Windows (CMD)',
     command:
-      `start "" "%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe" --disable-web-security --user-data-dir="%TEMP%\\requestmaker-chrome" "${escapedAppUrl.value}"`,
+      `set PROFILE=%TEMP%\\requestmaker-chrome-%RANDOM% && start "" "%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe" --disable-web-security --disable-sync --no-first-run --no-default-browser-check --disable-search-engine-choice-screen --new-window --user-data-dir="%PROFILE%" "${escapedAppUrl.value}"`,
   },
   {
     key: 'linux',
     label: 'Linux',
-    command: `google-chrome --disable-web-security --user-data-dir=/tmp/requestmaker-chrome "${escapedAppUrl.value}"`,
+    command:
+      `google-chrome --disable-web-security --disable-sync --no-first-run --no-default-browser-check --disable-search-engine-choice-screen --new-window --user-data-dir="/tmp/requestmaker-chrome-$(date +%s)" "${escapedAppUrl.value}"`,
   },
   {
     key: 'macos',
     label: 'macOS',
     command:
-      `if [ -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" ]; then "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --disable-web-security --user-data-dir="/tmp/requestmaker-chrome" "${escapedAppUrl.value}"; else open -n -a "Google Chrome" --args --disable-web-security --user-data-dir="/tmp/requestmaker-chrome" "${escapedAppUrl.value}"; fi`,
+      `if [ -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" ]; then "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --disable-web-security --disable-sync --no-first-run --no-default-browser-check --disable-search-engine-choice-screen --new-window --user-data-dir="/tmp/requestmaker-chrome-$(date +%s)" "${escapedAppUrl.value}"; else open -n -a "Google Chrome" --args --disable-web-security --disable-sync --no-first-run --no-default-browser-check --disable-search-engine-choice-screen --new-window --user-data-dir="/tmp/requestmaker-chrome-$(date +%s)" "${escapedAppUrl.value}"; fi`,
   },
 ])
 
