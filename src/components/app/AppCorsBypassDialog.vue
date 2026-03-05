@@ -48,7 +48,8 @@ const commandItems = computed<CommandItem[]>(() => [
   {
     key: 'macos',
     label: 'macOS',
-    command: `open -na "Google Chrome" --args --disable-web-security --user-data-dir="/tmp/requestmaker-chrome" "${escapedAppUrl.value}"`,
+    command:
+      `if [ -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" ]; then "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --disable-web-security --user-data-dir="/tmp/requestmaker-chrome" "${escapedAppUrl.value}"; else open -n -a "Google Chrome" --args --disable-web-security --user-data-dir="/tmp/requestmaker-chrome" "${escapedAppUrl.value}"; fi`,
   },
 ])
 

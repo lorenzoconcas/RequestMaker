@@ -84,6 +84,7 @@ npm run chrome:cors:mac
 ```
 
 Questi script aprono automaticamente `http://localhost:5173` con un profilo Chrome dedicato.
+Inoltre avviano anche il web server Vite (`npm run dev:web`) e lo tengono attivo finché non interrompi con `Ctrl+C`.
 
 Attenzione: usa questa modalità solo in sviluppo locale.
 
