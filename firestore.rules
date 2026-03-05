@@ -1,0 +1,203 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function hasAuthEmail() {
+      return isSignedIn() && request.auth.token.email != null;
+    }
+
+    function authEmailLower() {
+      return hasAuthEmail() ? request.auth.token.email.lower() : '';
+    }
+
+    function isTeamMember(teamId) {
+      return isSignedIn() &&
+        request.auth.uid in get(/databases/$(database)/documents/teams/$(teamId)).data.memberIds;
+    }
+
+    function isTeamAdmin(teamId) {
+      return isSignedIn() &&
+        request.auth.uid == get(/databases/$(database)/documents/teams/$(teamId)).data.ownerId;
+    }
+
+    function hasPendingTeamInvite(teamId) {
+      return hasAuthEmail() &&
+        exists(/databases/$(database)/documents/teamInvites/$(teamId + '__' + authEmailLower())) &&
+        get(/databases/$(database)/documents/teamInvites/$(teamId + '__' + authEmailLower())).data.status == 'pending' &&
+        get(/databases/$(database)/documents/teamInvites/$(teamId + '__' + authEmailLower())).data.expiresAt > request.time;
+    }
+
+    function isWorkspaceMember(workspaceId) {
+      return isSignedIn() &&
+        request.auth.uid in get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.memberIds;
+    }
+
+    function isWorkspaceOwner(workspaceId) {
+      return isSignedIn() &&
+        request.auth.uid == get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerId;
+    }
+
+    function isWorkspaceTeamAdmin(workspaceId) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.teamId is string &&
+        request.auth.uid ==
+          get(
+            /databases/$(database)/documents/teams/$(get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.teamId)
+          ).data.ownerId;
+    }
+
+    function isWorkspaceAdmin(workspaceId) {
+      return isWorkspaceOwner(workspaceId) || isWorkspaceTeamAdmin(workspaceId);
+    }
+
+    function canAppendSelfToMemberIds(currentMemberIds, nextMemberIds) {
+      return nextMemberIds is list &&
+        nextMemberIds.hasAll(currentMemberIds) &&
+        nextMemberIds.size() <= currentMemberIds.size() + 1 &&
+        request.auth.uid in nextMemberIds;
+    }
+
+    match /users/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /teams/{teamId} {
+      allow read: if (
+        isSignedIn() &&
+        request.auth.uid in resource.data.memberIds
+      ) || hasPendingTeamInvite(teamId);
+      allow create: if isSignedIn() &&
+        request.resource.data.memberIds is list &&
+        request.auth.uid in request.resource.data.memberIds;
+      allow update: if (
+        isSignedIn() &&
+        request.auth.uid in resource.data.memberIds
+      ) || (
+        hasPendingTeamInvite(teamId) &&
+        request.resource.data.name == resource.data.name &&
+        request.resource.data.ownerId == resource.data.ownerId &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        canAppendSelfToMemberIds(resource.data.memberIds, request.resource.data.memberIds)
+      );
+      allow delete: if isSignedIn() && request.auth.uid in resource.data.memberIds;
+
+      match /secrets/{secretId} {
+        allow read: if isTeamAdmin(teamId) || (
+          isTeamMember(teamId) &&
+          resource.data.visibility != 'admin'
+        );
+        allow create: if isTeamAdmin(teamId) || (
+          isTeamMember(teamId) &&
+          request.resource.data.visibility != 'admin'
+        );
+        allow update: if isTeamAdmin(teamId) || (
+          isTeamMember(teamId) &&
+          resource.data.visibility != 'admin' &&
+          request.resource.data.visibility != 'admin'
+        );
+        allow delete: if isTeamAdmin(teamId) || (
+          isTeamMember(teamId) &&
+          resource.data.visibility != 'admin'
+        );
+      }
+    }
+
+    match /teamInvites/{inviteId} {
+      function isInviteTarget() {
+        return hasAuthEmail() &&
+          resource.data.invitedEmailNormalized is string &&
+          resource.data.invitedEmailNormalized == authEmailLower();
+      }
+
+      allow read: if (
+        resource.data.teamId is string && isTeamMember(resource.data.teamId)
+      ) || isInviteTarget();
+
+      allow create: if isSignedIn() &&
+        request.resource.data.teamId is string &&
+        isTeamMember(request.resource.data.teamId) &&
+        request.resource.data.invitedEmailNormalized is string &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.expiresAt is timestamp &&
+        request.resource.data.expiresAt > request.time;
+
+      allow update: if (
+        resource.data.teamId is string &&
+        isTeamMember(resource.data.teamId)
+      ) || (
+        isInviteTarget() &&
+        resource.data.status == 'pending' &&
+        resource.data.expiresAt is timestamp &&
+        request.resource.data.teamId == resource.data.teamId &&
+        request.resource.data.invitedEmailNormalized == resource.data.invitedEmailNormalized &&
+        (
+          (
+            resource.data.expiresAt > request.time &&
+            request.resource.data.status in ['accepted', 'declined']
+          ) ||
+          request.resource.data.status == 'expired'
+        )
+      );
+
+      allow delete: if resource.data.teamId is string && isTeamMember(resource.data.teamId);
+    }
+
+    match /workspaces/{workspaceId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid in resource.data.memberIds ||
+        (resource.data.teamId is string && hasPendingTeamInvite(resource.data.teamId))
+      );
+      allow create: if isSignedIn() &&
+        request.resource.data.memberIds is list &&
+        request.auth.uid in request.resource.data.memberIds;
+      allow update, delete: if (
+        isSignedIn() && request.auth.uid in resource.data.memberIds
+      ) || (
+        isSignedIn() &&
+        resource.data.teamId is string &&
+        hasPendingTeamInvite(resource.data.teamId) &&
+        request.resource.data.name == resource.data.name &&
+        request.resource.data.ownerId == resource.data.ownerId &&
+        request.resource.data.teamId == resource.data.teamId &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        canAppendSelfToMemberIds(resource.data.memberIds, request.resource.data.memberIds)
+      );
+
+      match /collections/{collectionId} {
+        allow read, write: if isWorkspaceMember(workspaceId);
+      }
+
+      match /requests/{requestId} {
+        allow read, write: if isWorkspaceMember(workspaceId);
+      }
+
+      match /collectionSecrets/{secretId} {
+        allow read: if isWorkspaceAdmin(workspaceId) || (
+          isWorkspaceMember(workspaceId) &&
+          resource.data.visibility != 'admin'
+        );
+        allow create: if isWorkspaceAdmin(workspaceId) || (
+          isWorkspaceMember(workspaceId) &&
+          request.resource.data.visibility != 'admin'
+        );
+        allow update: if isWorkspaceAdmin(workspaceId) || (
+          isWorkspaceMember(workspaceId) &&
+          resource.data.visibility != 'admin' &&
+          request.resource.data.visibility != 'admin'
+        );
+        allow delete: if isWorkspaceAdmin(workspaceId) || (
+          isWorkspaceMember(workspaceId) &&
+          resource.data.visibility != 'admin'
+        );
+      }
+    }
+
+    match /mail/{mailId} {
+      allow create: if isSignedIn();
+      allow read, update, delete: if false;
+    }
+  }
+}
