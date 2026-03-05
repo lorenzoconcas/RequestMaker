@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import { Copy, ShieldAlert, X } from 'lucide-vue-next'
 
@@ -17,30 +17,40 @@ const { controller } = defineProps<{ controller: AppController }>()
 const { showCorsBypassDialog, closeCorsBypassDialog } = controller
 const copiedKey = ref<string | null>(null)
 
-const commandItems: CommandItem[] = [
+const appUrl = computed(() => {
+  if (typeof window === 'undefined') {
+    return 'http://localhost:5173'
+  }
+
+  return window.location.href
+})
+
+const escapedAppUrl = computed(() => appUrl.value.replace(/"/g, '%22'))
+
+const commandItems = computed<CommandItem[]>(() => [
   {
     key: 'windows-powershell',
     label: 'Windows (PowerShell)',
     command:
-      '$chrome="$env:ProgramFiles\\Google\\Chrome\\Application\\chrome.exe"; if (-not (Test-Path $chrome)) { $chrome="$env:ProgramFiles(x86)\\Google\\Chrome\\Application\\chrome.exe" }; Start-Process -FilePath $chrome -ArgumentList \'--disable-web-security\', "--user-data-dir=$env:TEMP\\requestmaker-chrome"',
+      `$chrome="$env:ProgramFiles\\Google\\Chrome\\Application\\chrome.exe"; if (-not (Test-Path $chrome)) { $chrome="$env:ProgramFiles(x86)\\Google\\Chrome\\Application\\chrome.exe" }; $profileDir="$env:TEMP\\requestmaker-chrome"; Start-Process -FilePath $chrome -ArgumentList '--disable-web-security', "--user-data-dir=$profileDir", "${escapedAppUrl.value}"`,
   },
   {
     key: 'windows-cmd',
     label: 'Windows (CMD)',
     command:
-      'start "" "%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe" --disable-web-security --user-data-dir="%TEMP%\\requestmaker-chrome"',
+      `start "" "%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe" --disable-web-security --user-data-dir="%TEMP%\\requestmaker-chrome" "${escapedAppUrl.value}"`,
   },
   {
     key: 'linux',
     label: 'Linux',
-    command: 'google-chrome --disable-web-security --user-data-dir=/tmp/requestmaker-chrome',
+    command: `google-chrome --disable-web-security --user-data-dir=/tmp/requestmaker-chrome "${escapedAppUrl.value}"`,
   },
   {
     key: 'macos',
     label: 'macOS',
-    command: 'open -na "Google Chrome" --args --disable-web-security --user-data-dir="/tmp/requestmaker-chrome"',
+    command: `open -na "Google Chrome" --args --disable-web-security --user-data-dir="/tmp/requestmaker-chrome" "${escapedAppUrl.value}"`,
   },
-]
+])
 
 async function copyCommand(item: CommandItem) {
   if (typeof navigator === 'undefined' || !navigator.clipboard) {
@@ -87,6 +97,7 @@ async function copyCommand(item: CommandItem) {
       <div class="space-y-4 p-4">
         <div class="rounded-md border border-amber-300/70 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
           Usa questi comandi solo per test locale: il flag <code>--disable-web-security</code> riduce la sicurezza del browser.
+          Ogni comando apre automaticamente la pagina corrente dell'app.
         </div>
 
         <div class="space-y-3">

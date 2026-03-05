@@ -73,6 +73,20 @@ Nel request editor puoi scegliere il trasporto:
 - `Electron Fetch (native)`: fetch in main process Electron, bypass CORS del browser.
 - `cURL nativo`: esecuzione di `curl` locale via IPC.
 
+## Chrome bypass CORS (solo sviluppo web)
+
+Per test locali in browser puoi avviare Chrome con web security disabilitata:
+
+```bash
+npm run chrome:cors:win
+npm run chrome:cors:linux
+npm run chrome:cors:mac
+```
+
+Questi script aprono automaticamente `http://localhost:5173` con un profilo Chrome dedicato.
+
+Attenzione: usa questa modalità solo in sviluppo locale.
+
 ## Nome e icona app Electron
 
 - Nome app runtime: `electron/main.cjs` (`APP_NAME`).
