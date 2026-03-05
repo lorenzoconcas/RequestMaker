@@ -136,3 +136,11 @@ Flusso import:
 - Per invio email automatico è supportata la collection `mail` (Firebase Extension Trigger Email).
   - Configurazione web: `Firebase Console > Extensions > Trigger Email` con collection `mail`.
 - Per produzione conviene aggiungere audit log, versioning richieste e gestione ruoli (owner/editor/viewer).
+
+## Open Source
+
+- Licenza: [MIT](./LICENSE)
+- Security policy: [SECURITY.md](./SECURITY.md)
+- Contributing: [CONTRIBUTING.md](./CONTRIBUTING.md)
+- Code of Conduct: [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
+- Release checklist: [RELEASE_CHECKLIST.md](./RELEASE_CHECKLIST.md)
