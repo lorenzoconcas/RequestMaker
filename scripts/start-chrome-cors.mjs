@@ -18,13 +18,13 @@ if (currentPlatform !== expectedPlatform) {
   process.exit(1)
 }
 
-const npmExecutable = currentPlatform === 'win32' ? 'npm.cmd' : 'npm'
 const devPort = Number.parseInt(process.env.REQUESTMAKER_DEV_PORT || '5173', 10)
 const appUrl = process.env.REQUESTMAKER_DEV_URL || `http://localhost:${devPort}`
 const userDataDir = path.join(os.tmpdir(), 'requestmaker-chrome')
 
-const devServerProcess = spawn(npmExecutable, ['run', 'dev:web'], {
+const devServerProcess = spawn('npm run dev:web', {
   env: process.env,
+  shell: true,
   stdio: 'inherit',
 })
 
@@ -44,6 +44,11 @@ function shutdown(signal = 'SIGTERM') {
 
 process.on('SIGINT', () => shutdown('SIGINT'))
 process.on('SIGTERM', () => shutdown('SIGTERM'))
+
+devServerProcess.on('error', (error) => {
+  console.error(`Errore avvio dev server: ${error.message}`)
+  process.exit(1)
+})
 
 devServerProcess.on('close', (code) => {
   process.exit(code ?? 0)
@@ -120,19 +125,36 @@ function launchChromeForWindows() {
   ].filter(Boolean)
 
   const chromePath = candidates.find((candidate) => fs.existsSync(candidate))
-  const executable = chromePath || 'chrome'
-  const quotedExecutable = `"${executable.replace(/"/g, '\\"')}"`
-  const quotedUserDataDir = `"${userDataDir.replace(/"/g, '\\"')}"`
-  const quotedUrl = `"${appUrl.replace(/"/g, '\\"')}"`
-  const command = `start "" ${quotedExecutable} --disable-web-security --user-data-dir=${quotedUserDataDir} ${quotedUrl}`
+  const executable = chromePath || 'chrome.exe'
+  const escapePs = (value) => value.replace(/'/g, "''")
+  const script =
+    `Start-Process -FilePath '${escapePs(executable)}' ` +
+    `-ArgumentList '--disable-web-security','--user-data-dir=${escapePs(userDataDir)}','${escapePs(appUrl)}'`
 
-  const result = spawnSync('cmd.exe', ['/d', '/s', '/c', command], {
+  const powershellResult = spawnSync(
+    'powershell.exe',
+    ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script],
+    {
+      stdio: 'ignore',
+      windowsHide: true,
+    },
+  )
+
+  if (powershellResult.status === 0) {
+    return
+  }
+
+  const cmdCommand =
+    `start "" "${executable}" --disable-web-security ` +
+    `--user-data-dir="${userDataDir}" "${appUrl}"`
+
+  const cmdResult = spawnSync('cmd.exe', ['/d', '/s', '/c', cmdCommand], {
     stdio: 'ignore',
     windowsHide: true,
   })
 
-  if (result.status !== 0) {
-    throw new Error('Impossibile avviare Chrome su Windows (cmd/start).')
+  if (cmdResult.status !== 0) {
+    throw new Error('Impossibile avviare Chrome su Windows (PowerShell e cmd falliti).')
   }
 }
 
