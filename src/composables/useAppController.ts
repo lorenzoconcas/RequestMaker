@@ -90,6 +90,7 @@ export function useAppController() {
   const sidebarCollapsed = ref(false)
   const showUserMenu = ref(false)
   const showUserDialog = ref(false)
+  const showCorsBypassDialog = ref(false)
   const activeEditorTab = ref<'headers' | 'body' | 'authorization' | 'description'>('headers')
   const userPageTab = ref<'profile' | 'team'>('profile')
   const settingsPageTab = ref<'general' | 'workspace' | 'secrets'>('general')
@@ -1268,6 +1269,15 @@ export function useAppController() {
     showUserDialog.value = false
   }
 
+  function openCorsBypassDialog() {
+    showCorsBypassDialog.value = true
+    showUserMenu.value = false
+  }
+
+  function closeCorsBypassDialog() {
+    showCorsBypassDialog.value = false
+  }
+
   function handleSelectWorkspaceFromUserMenu(workspaceId: string) {
     const normalizedWorkspaceId = workspaceId.trim()
 
@@ -1792,7 +1802,7 @@ export function useAppController() {
       handleThemeFromUserMenu('dark')
       return
     }
-  
+
     if (actionId === 'toggle-auth') {
       await handleUserMenuAuthAction()
     }
@@ -1903,6 +1913,7 @@ export function useAppController() {
     sidebarCollapsed,
     showUserMenu,
     showUserDialog,
+    showCorsBypassDialog,
     activeEditorTab,
     userPageTab,
     settingsPageTab,
@@ -2029,6 +2040,8 @@ export function useAppController() {
     toggleUserMenu,
     openMainPage,
     closeUserDialog,
+    openCorsBypassDialog,
+    closeCorsBypassDialog,
     handleSelectWorkspaceFromUserMenu,
     openWorkspaceSettingsFromUserMenu,
     handleThemeFromUserMenu,

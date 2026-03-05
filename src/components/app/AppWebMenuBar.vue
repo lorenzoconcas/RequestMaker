@@ -21,7 +21,7 @@ interface WebMenuSection {
 
 const { controller } = defineProps<{ controller: AppController }>()
 
-const { store, handleElectronMenuAction } = controller
+const { store, handleElectronMenuAction, openCorsBypassDialog } = controller
 
 const rootRef = ref<HTMLElement | null>(null)
 const openMenuId = ref<string | null>(null)
@@ -117,7 +117,11 @@ const menuSections = computed<WebMenuSection[]>(() => [
   {
     id: 'help',
     label: 'Aiuto',
-    items: [{ label: 'Apri pagina impostazioni', actionId: 'open-settings-page' }],
+    items: [
+      { label: 'Apri pagina impostazioni', actionId: 'open-settings-page' },
+      { divider: true },
+      { label: 'Comandi Chrome bypass CORS', onClick: openCorsBypassDialog },
+    ],
   },
 ])
 

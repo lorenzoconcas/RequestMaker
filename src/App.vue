@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppContextMenu from '@/components/app/AppContextMenu.vue'
+import AppCorsBypassDialog from '@/components/app/AppCorsBypassDialog.vue'
 import AppHeader from '@/components/app/AppHeader.vue'
 import AppMainContent from '@/components/app/AppMainContent.vue'
 import AppSidebar from '@/components/app/AppSidebar.vue'
@@ -31,6 +32,7 @@ const openApiInputRef = controller.openApiInputRef
     </div>
 
     <AppContextMenu :controller="controller" />
+    <AppCorsBypassDialog :controller="controller" />
     <AppUserDialog :controller="controller" />
     <AppToaster />
   </div>
