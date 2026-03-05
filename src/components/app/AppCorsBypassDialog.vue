@@ -19,10 +19,16 @@ const copiedKey = ref<string | null>(null)
 
 const commandItems: CommandItem[] = [
   {
-    key: 'windows',
-    label: 'Windows (PowerShell / CMD)',
+    key: 'windows-powershell',
+    label: 'Windows (PowerShell)',
     command:
-      'start "" "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --disable-web-security --user-data-dir="%TEMP%\\requestmaker-chrome"',
+      '$chrome="$env:ProgramFiles\\Google\\Chrome\\Application\\chrome.exe"; if (-not (Test-Path $chrome)) { $chrome="$env:ProgramFiles(x86)\\Google\\Chrome\\Application\\chrome.exe" }; Start-Process -FilePath $chrome -ArgumentList \'--disable-web-security\', "--user-data-dir=$env:TEMP\\requestmaker-chrome"',
+  },
+  {
+    key: 'windows-cmd',
+    label: 'Windows (CMD)',
+    command:
+      'start "" "%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe" --disable-web-security --user-data-dir="%TEMP%\\requestmaker-chrome"',
   },
   {
     key: 'linux',
